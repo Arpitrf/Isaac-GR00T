@@ -1,4 +1,6 @@
 import argparse
+import h5py
+import torch
 from collections import defaultdict
 from dataclasses import dataclass, field
 from functools import partial
@@ -7,12 +9,15 @@ import time
 from typing import Any
 import uuid
 
+import omnigibson as og
+
 from gr00t.data.embodiment_tags import EmbodimentTag
 from gr00t.eval.sim.env_utils import get_embodiment_tag_from_env_name
 from gr00t.eval.sim.wrapper.multistep_wrapper import MultiStepWrapper
 from gr00t.policy import BasePolicy
 import gymnasium as gym
 import numpy as np
+np.set_printoptions(precision=4, suppress=True)
 from tqdm import tqdm
 
 
@@ -75,6 +80,35 @@ class WrapperConfigs:
     video: VideoConfig = field(default_factory=VideoConfig)
     multistep: MultiStepConfig = field(default_factory=MultiStepConfig)
 
+def add_env_dim_to_obs(obs_dict, n_envs):
+    """
+    Add n_envs dimension as the first axis to all values in obs_dict.
+    
+    Args:
+        obs_dict: Dictionary with observation keys (from _get_obs())
+        n_envs: Number of environments
+    
+    Returns:
+        Dictionary with same keys, but each value has (n_envs, ...) shape
+    """
+    stacked = {}
+    for key, value in obs_dict.items():
+        if isinstance(value, np.ndarray):
+            # Add n_envs dimension at axis=0
+            # value shape: (horizon, ...) or (feature_dim,)
+            # stacked shape: (n_envs, horizon, ...) or (n_envs, feature_dim,)
+            stacked[key] = np.stack([value] * n_envs, axis=0)
+        elif isinstance(value, str):
+            # For other string values, create tuple
+            stacked[key] = tuple([value] * n_envs)
+        else:
+            # Fallback: try to convert to array and stack
+            try:
+                stacked[key] = np.stack([value] * n_envs, axis=0)
+            except:
+                # If stacking fails, just replicate in a list
+                stacked[key] = [value] * n_envs
+    return stacked
 
 def get_robocasa_env_fn(
     env_name: str,
@@ -199,6 +233,7 @@ def create_eval_env(
     """
 
     env = get_gym_env(env_name, env_idx, total_n_envs)
+    print("after get_gym_env: ", env.__class__.mro())
     if wrapper_configs.video.video_dir is not None:
         from gr00t.eval.sim.wrapper.video_recording_wrapper import (
             VideoRecorder,
@@ -221,6 +256,7 @@ def create_eval_env(
             max_episode_steps=wrapper_configs.video.max_episode_steps,
             overlay_text=wrapper_configs.video.overlay_text,
         )
+    print("after VideoRecordingWrapper: ", env.__class__.mro())
 
     env = MultiStepWrapper(
         env,
@@ -230,8 +266,48 @@ def create_eval_env(
         max_episode_steps=wrapper_configs.multistep.max_episode_steps,
         terminate_on_success=wrapper_configs.multistep.terminate_on_success,
     )
+    print("after MultiStepWrapper: ", env.__class__.mro())
     return env
 
+
+def reset_env(env, n_envs: int):
+    multistep_wrapper = env.envs[0]
+    behavior_groot_env = env.envs[0].env.env.env.env
+    og_env = behavior_groot_env.env.env.env
+
+    # Initial reset
+    observations, _ = env.reset()
+
+    # # TODO: Automate this by finding the state that satisfies the condition that we are looking for.
+    # # Load state from BEHAVIOR-1K challenge data.
+    # if og_env.task.activity_name == "hanging_pictures":
+    #     f = h5py.File("/home/arpit/behavior_dataset/task-0034/episode_00340020_replayed.hdf5", "r")
+    #     idx = np.random.randint(1350, 1400)
+    # elif og_env.task.activity_name == "turning_on_radio":
+    #     f = h5py.File("/home/arpit/behavior_dataset/task-0000/episode_00000010_replayed.hdf5", "r")
+    #     idx = np.random.randint(800, 1000)
+    
+    # state = torch.tensor(f["data/demo_0/state"][idx])
+    # og.sim.load_state(state, serialized=True)
+    # for key, controller in og_env.robots[0].controllers.items(): controller.reset()
+    # for _ in range(10): og.sim.step()
+    # # breakpoint()
+
+    # # Get inital observation after loading the state.
+    # from collections import deque
+    # # Step 1: Get obs from the behavior env.
+    # observations, _ = behavior_groot_env.get_observation()
+    # # Step 2: Apply multistep wrapper to the observation.
+    # multistep_wrapper.obs = deque([observations] * (multistep_wrapper.max_steps_needed + 1), 
+    #     maxlen=multistep_wrapper.max_steps_needed + 1)
+    # observations = multistep_wrapper._get_obs(
+    #     video_delta_indices=multistep_wrapper.video_delta_indices,
+    #     state_delta_indices=multistep_wrapper.state_delta_indices
+    # )
+    # # Step 3: Apply num_envs to the observation.
+    # observations = add_env_dim_to_obs(observations, n_envs)
+
+    return observations
 
 def run_rollout_gymnasium_policy(
     env_name: str,
@@ -269,6 +345,7 @@ def run_rollout_gymnasium_policy(
 
     if n_envs == 1:
         env = gym.vector.SyncVectorEnv(env_fns)
+        print("after SyncVectorEnv: ", env.__class__.mro())
     else:
         env = gym.vector.AsyncVectorEnv(
             env_fns,
@@ -285,15 +362,36 @@ def run_rollout_gymnasium_policy(
     episode_successes = []
     episode_infos = defaultdict(list)
 
-    # Initial reset
-    observations, _ = env.reset()
+    observations = reset_env(env, n_envs)
     policy.reset()
+    
     i = 0
-
     pbar = tqdm(total=n_episodes, desc="Episodes")
     while completed_episodes < n_episodes:
+        # Optionally log or print the timings (remove if not desired)
+        # print(f"policy.get_action: {get_action_time:.4f}s, env.step: {env_step_time:.4f}s")
+
+        time_start = time.time()
         actions, _ = policy.get_action(observations)
+        time_end = time.time()
+        policy_time = time_end - time_start
+        # breakpoint()
+
+        for key, action in actions.items():
+            if not np.isfinite(action).all():
+                print("BAD ACTION:", key)
+                breakpoint()
+        
+        # if i == 18:
+        #     breakpoint()
+
+        time_start = time.time()
+        # TODO: Check when do episodes terminate / truncate.
         next_obs, rewards, terminations, truncations, env_infos = env.step(actions)
+        time_end = time.time()
+        env_step_time = time_end - time_start
+        print(f"step {i}, policy.get_action: {policy_time:.4f}s, env.step: {env_step_time:.4f}s")
+
         # NOTE (FY): Currently we don't properly handle policy reset. For now, our policy are stateless,
         # but in the future if we need policy to be stateful, we need to detect env reset and call policy.reset()
         i += 1
@@ -357,7 +455,11 @@ def run_rollout_gymnasium_policy(
                     pbar.update(1)
                 current_rewards[env_idx] = 0
                 current_lengths[env_idx] = 0
-        observations = next_obs
+
+                # Reset the environment.
+                observations = reset_env(env, n_envs)
+                policy.reset()
+
     pbar.close()
 
     env.reset()
@@ -425,9 +527,9 @@ def run_gr00t_sim_policy(
         )
     else:
         video_dir = f"/tmp/sim_eval_videos_{env_name}_ac{n_action_steps}_{uuid.uuid4()}"
-    if env_name.startswith("sim_behavior_r1_pro"):
-        # BEHAVIOR sim will crash if decord is imported in video_utils.py
-        video_dir = None
+    # if env_name.startswith("sim_behavior_r1_pro"):
+    #     # BEHAVIOR sim will crash if decord is imported in video_utils.py
+    #     video_dir = None
     wrapper_configs = WrapperConfigs(
         video=VideoConfig(
             video_dir=video_dir,

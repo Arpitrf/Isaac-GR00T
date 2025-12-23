@@ -442,6 +442,8 @@ hanging_pictures:
     - 2.287109375
     - 0.0050048828125
     scene_model: house_double_floor_lower
+    load_room_types: ['kitchen', 'corridor', 'living_room']
+    activity_index: "34"
 hiding_Easter_eggs:
   0:
     robot_start_orientation:
@@ -826,6 +828,8 @@ storing_food:
     - -0.9969482421875
     - 0.0050048828125
     scene_model: house_single_floor
+    activity_index: "24"
+    load_room_instances: ["kitchen_0", "dining_room_0", "entryway_0", "living_room_0"]
 thawing_frozen_food:
   0:
     robot_start_orientation:

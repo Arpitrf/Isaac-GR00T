@@ -1,0 +1,140 @@
+{
+    "pesticide.n.01_1": {
+        "n_particles": 0,
+        "min_scale": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "max_scale": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "positions": [],
+        "orientations": [],
+        "scales": [],
+        "particle_counter": 0,
+        "n_groups": 0,
+        "groups": {}
+    },
+    "pesticide__atomizer.n.01_1": {
+        "is_asleep": true,
+        "root_link": {
+            "pos": [
+                13.003884315490723,
+                3.8240163326263428,
+                0.08061271905899048
+            ],
+            "ori": [
+                0.0003079496091231704,
+                -0.00011377692862879485,
+                0.7213197946548462,
+                0.6926019191741943
+            ],
+            "lin_vel": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "ang_vel": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "non_kin": {
+            "ToggledOn": {
+                "value": false,
+                "hand_in_marker_steps": 0
+            },
+            "ModifiedParticles": {
+                "n_systems": 0
+            },
+            "Saturated": {
+                "n_systems": 0,
+                "default_visual_particle_limit": 1000000,
+                "default_physical_particle_limit": 1000000
+            },
+            "ParticleApplier": {
+                "current_step": 3
+            }
+        }
+    },
+    "tree.n.01_1": {
+        "is_asleep": false,
+        "root_link": {
+            "pos": [
+                25.856597900390625,
+                8.246013641357422,
+                3.718750476837158
+            ],
+            "ori": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]
+        },
+        "non_kin": {
+            "Temperature": {
+                "temperature": 23.0
+            }
+        }
+    },
+    "tree.n.01_2": {
+        "is_asleep": false,
+        "root_link": {
+            "pos": [
+                15.86120891571045,
+                0.7766780853271484,
+                3.718750476837158
+            ],
+            "ori": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]
+        },
+        "non_kin": {
+            "Temperature": {
+                "temperature": 23.0
+            }
+        }
+    },
+    "floor.n.01_1": {
+        "is_asleep": false,
+        "root_link": {
+            "pos": [
+                15.194725036621094,
+                9.549063682556152,
+                -0.08061301708221436
+            ],
+            "ori": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]
+        },
+        "non_kin": {}
+    },
+    "robot_poses": {
+        "R1Pro": [
+            {
+                "position": [
+                    15.006805419921875,
+                    9.105705261230469,
+                    0.019115447998046875
+                ],
+                "orientation": [
+                    0.0,
+                    0.0,
+                    0.9998515844345093,
+                    0.01722806505858898
+                ]
+            }
+        ]
+    }
+}

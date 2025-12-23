@@ -188,6 +188,7 @@ class VideoRecordingWrapper(gym.Wrapper):
     def reset(self, **kwargs):
         result = super().reset(**kwargs)
         previous_step_count = self.step_count
+        # breakpoint()
         self.frames = list()
         self.step_count = 1
         self.video_recorder.stop()
@@ -335,6 +336,7 @@ class VideoRecordingWrapper(gym.Wrapper):
     def step(self, action):
         result = super().step(action)
         self.step_count += 1
+        # print("step_count: ", self.step_count)
         if self.file_path is not None and ((self.step_count % self.steps_per_render) == 0):
             if not self.video_recorder.is_ready():
                 self.video_recorder.start(self.file_path)

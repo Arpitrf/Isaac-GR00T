@@ -1,6 +1,7 @@
 from collections import OrderedDict
 import csv
 import json
+import h5py
 import logging
 from pathlib import Path
 
@@ -19,14 +20,29 @@ from omnigibson.macros import gm
 from omnigibson.metrics import AgentMetric, MetricBase, TaskMetric
 from omnigibson.robots import BaseRobot
 from omnigibson.transition_rules import CookingSystemRule, MixingToolRule, ToggleableMachineRule
+from omnigibson.objects import REGISTERED_OBJECTS
+from omnigibson.robots import REGISTERED_ROBOTS
 import torch as th
 
+from safety_benchmark.damageable_env import DamageableEnvironment
+from safety_benchmark.damageable_mixin import (
+    DamageableControllableObject,
+    DamageableDatasetObject,
+    DamageableLightObject,
+    DamageablePrimitiveObject,
+    DamageableStatefulObject,
+    DamageableUSDObject,
+    DamageableR1Pro,
+)
 
-gm.HEADLESS = True
+gm.HEADLESS = False
 
 # create module logger
 logger = logging.getLogger("evaluator")
 logger.setLevel(20)  # info
+
+# Flag to ensure we only patch the OmniGibson object registry once per process
+BEHAVIOR_DAMAGEABLE_PATCHED = False
 
 PROPRIOCEPTION_INDICES = {
     "R1Pro": OrderedDict(
@@ -232,6 +248,7 @@ def preprocess_obs(env, obs: dict) -> dict:
     """
     Preprocess the observation dictionary before passing it to the policy.
     """
+    obs_health = obs["health"]
     obs = flatten_obs_dict(obs["robot_r1"])
     # these rgb images have alpha channel, so we need to remove it
     obs["video.observation.images.rgb.left_wrist_256_256"] = (
@@ -255,6 +272,7 @@ def preprocess_obs(env, obs: dict) -> dict:
     proprio_obs = obs.pop("proprio")
     for key, value in PROPRIOCEPTION_INDICES["R1Pro"].items():
         obs[f"state.{key}"] = proprio_obs[value]
+    obs["health"] = obs_health.numpy()
     return obs
 
 
@@ -346,6 +364,9 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
             0, 255, (256, 256, 3), np.uint8
         )
         flat_obs_dict["annotation.human.coarse_action"] = gym.spaces.Text(max_length=512)
+        # import string
+        # charset = string.ascii_letters + string.digits + " .,!?:;'\"()-"
+        # flat_obs_dict["annotation.human.coarse_action"] = gym.spaces.Text(min_length=1, max_length=512, charset=charset)
         # replace `proprio` with fine-grained state obs
         proprio_space = flat_obs_dict.pop("proprio")
         fine_grained_proprio_space = OrderedDict()
@@ -357,6 +378,15 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
                 dtype=np.float32,
             )
         flat_obs_dict.update(fine_grained_proprio_space)
+        
+        # Add health to obs space
+        health_obs_len = 0
+        for obj in self.env.env.env.scene.objects:
+            if obj.track_damage:
+                for link_name, health in obj.link_healths.items():
+                    health_obs_len += 1
+        flat_obs_dict["health"] = gym.spaces.Box(low=0.0, high=100.0, shape=(health_obs_len,), dtype=np.float32)
+        
         self.observation_space = gym.spaces.Dict(flat_obs_dict)
         original_robot_action_space = self.env.action_space["robot_r1"]
         action_space_dict = OrderedDict()
@@ -441,6 +471,7 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
             self.info["valid"] = False
             logger.error(f"Error in OGEnv.step: {e}")
         else:
+            # TODO: Process health observations here
             self.obs = preprocess_obs(self, obs)
             self.info = postprocess_info(info)
             for metric in self.metrics:
@@ -463,6 +494,7 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
                     metric.end_callback(self.env)
                 self.info["q_score"] = self.metrics[1].final_q_score
                 self.info["valid"] = True
+            # breakpoint()
 
         # get task progress
         if self._physx_crashed:
@@ -490,6 +522,7 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         )
         # Load the seed instance by default
         task_cfg = available_tasks[self.task_name][0]
+        self.task_activity_index = task_cfg.get("activity_index", "00")
         cfg = generate_basic_environment_config(task_name=self.task_name, task_cfg=task_cfg)
         cfg["robots"] = [
             generate_robot_config(
@@ -497,6 +530,7 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
                 task_cfg=task_cfg,
             )
         ]
+        # breakpoint()
         # Update observation modalities
         cfg["robots"][0]["obs_modalities"] = ["proprio", "rgb"]
         cfg["robots"][0]["proprio_obs"] = list(PROPRIOCEPTION_INDICES["R1Pro"].keys())
@@ -505,7 +539,48 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         )
         cfg["task"]["termination_config"]["max_steps"] = int(self.human_stats["length"] * 2)
         cfg["task"]["include_obs"] = False
-        env = og.Environment(configs=cfg)
+
+        # Patch the OmniGibson object registry so that BEHAVIOR-created objects use
+        # damageable variants (e.g., DatasetObject -> DamageableDatasetObject).
+        # This must happen before the underlying OG environment (and its BehaviorTask)
+        # create any scene objects.
+        global BEHAVIOR_DAMAGEABLE_PATCHED
+        if not BEHAVIOR_DAMAGEABLE_PATCHED:
+            damageable_class_map = {
+                "DatasetObject": DamageableDatasetObject,
+                "PrimitiveObject": DamageablePrimitiveObject,
+                "USDObject": DamageableUSDObject,
+                "ControllableObject": DamageableControllableObject,
+                "LightObject": DamageableLightObject,
+                "StatefulObject": DamageableStatefulObject,
+            }
+            for class_name, damageable_cls in damageable_class_map.items():
+                if class_name in REGISTERED_OBJECTS:
+                    REGISTERED_OBJECTS[class_name] = damageable_cls
+                # if class_name in REGISTERED_ROBOTS:
+                #     REGISTERED_ROBOTS[class_name] = damageable_cls
+            BEHAVIOR_DAMAGEABLE_PATCHED = True
+
+        # In order to load states from B1K challenge data
+        self.scene_path = f"/home/arpit/behavior_dataset/task-00{self.task_activity_index}"
+        # cfg["scene"]["scene_file"] = json.loads(f["data"].attrs["scene_file"])
+        cfg["task"]["use_presampled_robot_pose"] = True
+        
+        # Create the underlying OmniGibson environment using the DamageableEnvironment
+        # wrapper so that config-based objects and robots are also made damageable.
+        # gm.USE_GPU_DYNAMICS=True
+        # env = og.Environment(configs=cfg)
+        env = DamageableEnvironment(configs=cfg)
+        env.initialize_damageable_objects()
+
+        # # In order to load stateS from B1K challenge data
+        # if self.task_name == "hanging_pictures":
+        #     f = h5py.File(f"{self.scene_path}/episode_00340020_replayed.hdf5", "r")
+        # elif self.task_name == "turning_on_radio":
+        #     f = h5py.File(f"{self.scene_path}/episode_00000010_replayed.hdf5", "r")
+        # scene_file_dict = json.loads(f["data"].attrs["scene_file"])
+        # env.scene.restore(scene_file_dict, update_initial_file=True)
+        
         env = RGBLowResWrapper(env)
         env = TaskProgressWrapper(env)
         return env
@@ -523,6 +598,10 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         """
         return [AgentMetric(self.human_stats), TaskMetric(self.human_stats)]
 
+    def get_observation(self):
+        obs, info = self.env.get_observation()
+        obs = preprocess_obs(self, obs)
+        return obs, info
 
 def register_behavior_envs():
     register(

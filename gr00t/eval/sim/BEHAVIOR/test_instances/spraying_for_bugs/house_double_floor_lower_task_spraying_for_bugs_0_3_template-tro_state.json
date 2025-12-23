@@ -1,0 +1,182 @@
+{
+    "insectifuge__atomizer.n.01_1": {
+        "is_asleep": false,
+        "root_link": {
+            "pos": [
+                12.57506275177002,
+                5.524967193603516,
+                0.08059288561344147
+            ],
+            "ori": [
+                0.00124137825332582,
+                -2.7782603865489364e-05,
+                -0.7813031077384949,
+                0.6241506934165955
+            ],
+            "lin_vel": [
+                -0.0016458379104733467,
+                -0.0017606617184355855,
+                -0.00011517075472511351
+            ],
+            "ang_vel": [
+                0.02130238525569439,
+                -0.02456417866051197,
+                0.012487757951021194
+            ]
+        },
+        "non_kin": {
+            "ToggledOn": {
+                "value": false,
+                "hand_in_marker_steps": 0
+            },
+            "ModifiedParticles": {
+                "n_systems": 0
+            },
+            "Saturated": {
+                "n_systems": 0,
+                "default_visual_particle_limit": 1000000,
+                "default_physical_particle_limit": 1000000
+            },
+            "ParticleApplier": {
+                "current_step": 3
+            }
+        }
+    },
+    "insectifuge.n.01_1": {
+        "n_particles": 0,
+        "min_scale": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "max_scale": [
+            1.0,
+            1.0,
+            1.0
+        ],
+        "positions": [],
+        "orientations": [],
+        "scales": [],
+        "particle_counter": 0,
+        "n_groups": 0,
+        "groups": {}
+    },
+    "floor.n.01_1": {
+        "is_asleep": false,
+        "root_link": {
+            "pos": [
+                15.194725036621094,
+                9.549063682556152,
+                -0.08061301708221436
+            ],
+            "ori": [
+                0.0,
+                0.0,
+                0.0,
+                1.0
+            ]
+        },
+        "non_kin": {}
+    },
+    "pot_plant.n.01_1": {
+        "is_asleep": true,
+        "root_link": {
+            "pos": [
+                14.873214721679688,
+                11.855217933654785,
+                0.17851552367210388
+            ],
+            "ori": [
+                -0.005802623927593231,
+                -0.0019785668700933456,
+                0.8588681221008301,
+                0.5121601223945618
+            ],
+            "lin_vel": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "ang_vel": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "non_kin": {
+            "Temperature": {
+                "temperature": 23.0
+            },
+            "ModifiedParticles": {
+                "n_systems": 0
+            },
+            "Saturated": {
+                "n_systems": 0,
+                "default_visual_particle_limit": 200,
+                "default_physical_particle_limit": 400
+            },
+            "ParticleRemover": {
+                "current_step": 0
+            }
+        }
+    },
+    "pot_plant.n.01_2": {
+        "is_asleep": true,
+        "root_link": {
+            "pos": [
+                14.066719055175781,
+                9.433636665344238,
+                0.17863786220550537
+            ],
+            "ori": [
+                -0.003991167061030865,
+                0.0013299742713570595,
+                0.5975648164749146,
+                0.801809549331665
+            ],
+            "lin_vel": [
+                0.0,
+                0.0,
+                0.0
+            ],
+            "ang_vel": [
+                0.0,
+                0.0,
+                0.0
+            ]
+        },
+        "non_kin": {
+            "Temperature": {
+                "temperature": 23.0
+            },
+            "ModifiedParticles": {
+                "n_systems": 0
+            },
+            "Saturated": {
+                "n_systems": 0,
+                "default_visual_particle_limit": 200,
+                "default_physical_particle_limit": 400
+            },
+            "ParticleRemover": {
+                "current_step": 0
+            }
+        }
+    },
+    "robot_poses": {
+        "R1Pro": [
+            {
+                "position": [
+                    14.965194702148438,
+                    9.19717788696289,
+                    0.0191192626953125
+                ],
+                "orientation": [
+                    0.0,
+                    0.0,
+                    0.7903067469596863,
+                    0.6127113699913025
+                ]
+            }
+        ]
+    }
+}

@@ -223,7 +223,7 @@ def generate_basic_environment_config(task_name, task_cfg):
         "scene": {
             "type": "InteractiveTraversableScene",
             "scene_model": task_cfg["scene_model"],
-            "load_room_types": None,
+            "load_room_types": task_cfg.get("load_room_types", None),
             "load_room_instances": task_cfg.get("load_room_instances", None),
             "include_robots": False,
         },
