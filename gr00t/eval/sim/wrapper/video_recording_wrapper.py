@@ -319,10 +319,11 @@ class VideoRecordingWrapper(gym.Wrapper):
             if previous_step_count >= self.max_episode_steps or self.is_success:
                 os.rename(self.file_path, new_file_path)
             else:
-                print(
-                    f"Skipping video recording for unfinished episode {previous_step_count} / {self.max_episode_steps}"
-                )
-                os.remove(self.file_path)
+                pass
+                # print(
+                #     f"Skipping video recording for unfinished episode {previous_step_count} / {self.max_episode_steps}"
+                # )
+                # os.remove(self.file_path)
 
         self.is_success = False
         # "intermediate_signals" contain the metrics for 5DC tasks to indicate language following

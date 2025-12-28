@@ -22,6 +22,7 @@ attach_a_camera_to_a_tripod:
     - 1.07769775390625
     - 0.0050048828125
     scene_model: house_double_floor_upper
+    activity_index: "35"
 boxing_books_up_for_storage:
   0:
     robot_start_orientation:
@@ -214,6 +215,7 @@ clean_a_trumpet:
     - 1.291290283203125
     - 0.0050048828125
     scene_model: house_double_floor_upper
+    activity_index: "37"
 clean_boxing_gloves:
   0:
     robot_start_orientation:
@@ -442,6 +444,7 @@ hanging_pictures:
     - 2.287109375
     - 0.0050048828125
     scene_model: house_double_floor_lower
+    activity_index: "34"
 hiding_Easter_eggs:
   0:
     robot_start_orientation:
@@ -502,6 +505,7 @@ make_microwave_popcorn:
     - 2.59600830078125
     - 0.0050048828125
     scene_model: house_double_floor_lower
+    activity_index: "40"
 make_pizza:
   0:
     robot_start_orientation:

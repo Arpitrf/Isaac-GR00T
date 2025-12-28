@@ -1,6 +1,8 @@
 from collections import OrderedDict
+import os
 import csv
 import json
+import h5py
 import logging
 from pathlib import Path
 
@@ -14,6 +16,7 @@ from gymnasium.envs.registration import register
 import numpy as np
 import omnigibson as og
 from omnigibson.envs import Environment, EnvironmentWrapper
+from omnigibson.envs.data_wrapper import DataCollectionWrapper
 from omnigibson.learning.wrappers import TaskProgressWrapper
 from omnigibson.macros import gm
 from omnigibson.metrics import AgentMetric, MetricBase, TaskMetric
@@ -22,7 +25,7 @@ from omnigibson.transition_rules import CookingSystemRule, MixingToolRule, Toggl
 import torch as th
 
 
-gm.HEADLESS = True
+gm.HEADLESS = False
 
 # create module logger
 logger = logging.getLogger("evaluator")
@@ -409,9 +412,11 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         self._instance_idx_pointer = (self._instance_idx_pointer + 1) % len(
             self._instance_indices_this_env
         )
-        # the correct way to do: first reset then load task instance
-        self.env.reset()
-        load_task_instance_for_env(self.env, self.robot, instance_id)
+        
+        # If using the initial states from the test set of BEHAVIOR-1K challenge data
+        # # the correct way to do: first reset then load task instance
+        # self.env.reset()
+        # load_task_instance_for_env(self.env, self.robot, instance_id)
 
         obs, info = self.env.reset()
         obs = preprocess_obs(self, obs)
@@ -506,6 +511,44 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         cfg["task"]["termination_config"]["max_steps"] = int(self.human_stats["length"] * 2)
         cfg["task"]["include_obs"] = False
         env = og.Environment(configs=cfg)
+
+        # In order to load states from B1K challenge data
+        self.scene_path = f"/home/arpit/behavior_dataset/task-00{task_cfg.get('activity_index', '00')}"
+        if self.task_name == "hanging_pictures":
+            f_id = "00340020"
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}replayed.hdf5", "r")
+        elif self.task_name == "turning_on_radio":
+            f_id = "00000010"
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+        elif self.task_name == "clean_a_trumpet":
+            f_id = "00372720"
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+        elif self.task_name == "make_microwave_popcorn":
+            f_id = "00402500"
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+        elif self.task_name == "attach_a_camera_to_a_tripod":
+            f_id = "00351240"
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+        scene_file_dict = json.loads(f["data"].attrs["scene_file"])
+        
+        folder_name = f"{Path(__file__).parent}/rollouts/{self.task_name}"
+        os.makedirs(folder_name, exist_ok=True)
+        # num = len([file for file in os.listdir(folder_name) if os.path.isfile(os.path.join(folder_name, file))])
+        num = len([file for file in os.listdir(folder_name) if os.path.isfile(os.path.join(folder_name, file)) and "playback" not in file])
+        # num = len(os.listdir(folder_name))
+        # TODO: Get the number from the disk.
+        hdf5_path = f"{folder_name}/rollout_{num:04d}_{f_id}.hdf5"
+        env = DataCollectionWrapper(
+            env=env,
+            output_path=hdf5_path,
+            only_successes=False,
+            # obj_attr_keys=["scale", "visible"],
+            enable_dump_filters=False,
+            flush_every_n_traj=1
+        )
+        
+        env.scene.restore(scene_file_dict, update_initial_file=True)
+
         env = RGBLowResWrapper(env)
         env = TaskProgressWrapper(env)
         return env
@@ -522,6 +565,12 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         Load agent and task metrics.
         """
         return [AgentMetric(self.human_stats), TaskMetric(self.human_stats)]
+
+    def get_observation(self):
+        obs, info = self.env.get_obs()
+        obs = preprocess_obs(self, obs)
+        return obs, info
+
 
 
 def register_behavior_envs():

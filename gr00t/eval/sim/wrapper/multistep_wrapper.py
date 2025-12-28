@@ -309,13 +309,16 @@ class MultiStepWrapper(gym.Wrapper):
 
         return observation, reward, done, truncated, info
 
-    def _get_obs(self, video_delta_indices, state_delta_indices):
+    def _get_obs(self, video_delta_indices=None, state_delta_indices=None, local_obs=None):
         """
         Output:
         For video: (video_horizon,) + obs_shape
         For state (if not None): (state_horizon,) + obs_shape
         """
-        assert len(self.obs) > 0
+        if local_obs is None:
+            assert len(self.obs) > 0
+            local_obs = self.obs
+
         if isinstance(self.observation_space, spaces.Dict):
             result = dict()
             for key in self.observation_space.keys():
@@ -328,12 +331,12 @@ class MultiStepWrapper(gym.Wrapper):
                         it should be [obs[-5], obs[-4], obs[-3], obs[-2], obs[-1]]
                       (i.e., the latest observation is at the last index)
                     """
-                    delta_indices = video_delta_indices - 1
+                    delta_indices = self.video_delta_indices - 1
                     this_obs = [self.obs[i][key] for i in delta_indices]
                     result[key] = np.stack(this_obs, axis=0)
                 elif key.startswith("state"):
-                    if state_delta_indices is not None:
-                        delta_indices = state_delta_indices - 1
+                    if self.state_delta_indices is not None:
+                        delta_indices = self.state_delta_indices - 1
                     else:
                         raise ValueError(
                             f"state_delta_indices is None but `state` is still in the {self.observation_space=}"
@@ -343,8 +346,8 @@ class MultiStepWrapper(gym.Wrapper):
                 elif key.startswith("annotation"):
                     result[key] = self.obs[-1][key]
                 else:
-                    if state_delta_indices is not None:
-                        delta_indices = state_delta_indices - 1
+                    if self.state_delta_indices is not None:
+                        delta_indices = self.state_delta_indices - 1
                     else:
                         raise ValueError(
                             f"state_delta_indices is None but `state` is still in the {self.observation_space=}"
