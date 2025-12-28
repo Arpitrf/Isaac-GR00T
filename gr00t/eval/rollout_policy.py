@@ -456,7 +456,7 @@ def run_rollout_gymnasium_policy(
                 current_lengths[env_idx] = 0
 
                 # Reset the environment.
-                observations = reset_env(env, n_envs)
+                next_obs = reset_env(env, n_envs)
                 policy.reset()
 
         observations = next_obs
