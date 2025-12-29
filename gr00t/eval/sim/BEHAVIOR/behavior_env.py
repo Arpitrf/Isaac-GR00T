@@ -23,6 +23,7 @@ from omnigibson.macros import gm
 from omnigibson.metrics import AgentMetric, MetricBase, TaskMetric
 from omnigibson.robots import BaseRobot
 from omnigibson.transition_rules import CookingSystemRule, MixingToolRule, ToggleableMachineRule
+from omnigibson import object_states
 import torch as th
 
 
@@ -476,6 +477,11 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
             for metric in self.metrics:
                 metric.step_callback(self.env)
 
+            # To debug metrics
+            # print(self.env.task.ground_goal_state_options)
+            # print(self.env.task.ground_goal_state_options[0][0].body)
+            # print(self.metrics[1].initial_predicate_states)
+
             if len(self._task_progress_dict) == 0:
                 self._task_progress_dict = {k: False for k in self.info["task_progress"]}
             self._task_progress_dict = {
@@ -654,6 +660,14 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         # Update the instance index pointer
         self._train_instance_idx_pointer = (self._train_instance_idx_pointer + 1) % len(self.train_instance_files)
 
+    def check_subtask_success(self) -> bool:
+        """
+        Check if the subtask is successful.
+        """
+        if self.task_name == "attach_a_camera_to_a_tripod":
+            source_object = self.env.scene.object_registry("name", "digital_camera_87")
+            other = self.env.scene.object_registry("name", "camera_tripod_86")
+            return source_object.states[object_states.AttachedTo].get_value(other)
 
 def register_behavior_envs():
     register(

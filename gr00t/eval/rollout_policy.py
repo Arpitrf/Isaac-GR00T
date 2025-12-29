@@ -390,7 +390,8 @@ def run_rollout_gymnasium_policy(
     while completed_episodes < n_episodes:
         actions, _ = policy.get_action(observations)
         next_obs, rewards, terminations, truncations, env_infos = env.step(actions)
-        print(f"step {i} completed")
+        if i % 50 == 0:
+            print(f"step {i} completed")
         # NOTE (FY): Currently we don't properly handle policy reset. For now, our policy are stateless,
         # but in the future if we need policy to be stateful, we need to detect env reset and call policy.reset()
         i += 1
@@ -430,14 +431,31 @@ def run_rollout_gymnasium_policy(
 
             # If episode ended, store results
             if terminations[env_idx] or truncations[env_idx]:
+                print("================= Episode {} ended ==================".format(completed_episodes))
+                # breakpoint()
+                behavior_groot_env = env.envs[0].env.env.env.env
+                og_env = behavior_groot_env.env.env.env
                 if "final_info" in env_infos:
                     current_successes[env_idx] |= any(env_infos["final_info"][env_idx]["success"])
                 if "task_progress" in env_infos:
                     episode_infos["task_progress"].append(env_infos["task_progress"][env_idx][-1])
+                
                 if "q_score" in env_infos:
                     episode_infos["q_score"].append(np.max(env_infos["q_score"][env_idx]))
+                else:
+                    for metric in behavior_groot_env.metrics: metric.end_callback(og_env)
+                    episode_infos["q_score"].append(behavior_groot_env.metrics[1].final_q_score)
+                
                 if "valid" in env_infos:
                     episode_infos["valid"].append(all(env_infos["valid"][env_idx]))
+                else:
+                    episode_infos["valid"].append(not behavior_groot_env._physx_crashed)
+
+                # OG Specific
+                subtask_success = behavior_groot_env.check_subtask_success()
+                print(f"------> Subtask success: {subtask_success}")
+                episode_infos["subtask_success"].append(subtask_success)
+                
                 # Accumulate results
                 episode_lengths.append(current_lengths[env_idx])
                 episode_successes.append(current_successes[env_idx])
@@ -457,7 +475,7 @@ def run_rollout_gymnasium_policy(
 
                 # Reset the environment.
                 # observations = reset_env(env, n_envs)
-                observations, _ = env.reset()
+                next_obs, _ = env.reset()
                 policy.reset()
 
         observations = next_obs
