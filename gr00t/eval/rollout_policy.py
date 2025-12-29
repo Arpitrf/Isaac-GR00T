@@ -217,68 +217,68 @@ def get_gym_env(env_name: str, env_idx: int, total_n_envs: int):
 
     return env_fn()
 
-def reset_env(env, n_envs: int):
-    multistep_wrapper = env.envs[0]
-    behavior_groot_env = env.envs[0].env.env.env.env
-    og_env = behavior_groot_env.env.env.env
+# def reset_env(env, n_envs: int):
+#     multistep_wrapper = env.envs[0]
+#     behavior_groot_env = env.envs[0].env.env.env.env
+#     og_env = behavior_groot_env.env.env.env
 
-    # Initial reset
-    observations, _ = env.reset()
+#     # Initial reset
+#     observations, _ = env.reset()
 
-    # TODO: Automate this by finding the state that satisfies the condition that we are looking for.
-    # Load state from BEHAVIOR-1K challenge data.
-    if og_env.task.activity_name == "hanging_pictures":
-        f = h5py.File("/home/arpit/behavior_dataset/task-0034/episode_00340020_replayed.hdf5", "r")
-        idx = np.random.randint(1350, 1400)
-        state = torch.tensor(f["data/demo_0/state"][idx])
-        og.sim.load_state(state, serialized=True)
-    elif og_env.task.activity_name == "turning_on_radio":
-        f = h5py.File("/home/arpit/behavior_dataset/task-0000/episode_00000010_replayed.hdf5", "r")
-        idx = np.random.randint(800, 1000)
-        state = torch.tensor(f["data/demo_0/state"][idx])
-        og.sim.load_state(state, serialized=True)
-    elif og_env.task.activity_name == "clean_a_trumpet":
-        f = h5py.File("/home/arpit/behavior_dataset/task-0037/episode_00372720_replayed.hdf5", "r")
-        # idx = np.random.randint(900, 1000)
-        idx = np.random.randint(1000, 1050)
-        state = torch.tensor(f["data/demo_0/state"][idx])
-        # For some reason, the state is not loaded correctly with the first load.
-        for _ in range(2):
-            og.sim.load_state(state, serialized=True)
-    elif og_env.task.activity_name == "make_microwave_popcorn":
-        f = h5py.File("/home/arpit/behavior_dataset/task-0040/episode_00402500_replayed.hdf5", "r")
-        idx = np.random.randint(150, 200)
-        state = torch.tensor(f["data/demo_0/state"][idx])
-        state_size = f["data/demo_0/state_size"][idx]
-        og.sim.load_state(state[: int(state_size)], serialized=True)
-    elif og_env.task.activity_name == "attach_a_camera_to_a_tripod":
-        f = h5py.File("/home/arpit/behavior_dataset/task-0035/episode_00351240_replayed.hdf5", "r")
-        idx = np.random.randint(1400, 1450)
-        state = torch.tensor(f["data/demo_0/state"][idx])
-        state_size = f["data/demo_0/state_size"][idx]
-        og.sim.load_state(state[: int(state_size)], serialized=True)
+#     # TODO: Automate this by finding the state that satisfies the condition that we are looking for.
+#     # Load state from BEHAVIOR-1K challenge data.
+#     if og_env.task.activity_name == "hanging_pictures":
+#         f = h5py.File("/home/arpit/behavior_dataset/task-0034/episode_00340020_replayed.hdf5", "r")
+#         idx = np.random.randint(1350, 1400)
+#         state = torch.tensor(f["data/demo_0/state"][idx])
+#         og.sim.load_state(state, serialized=True)
+#     elif og_env.task.activity_name == "turning_on_radio":
+#         f = h5py.File("/home/arpit/behavior_dataset/task-0000/episode_00000010_replayed.hdf5", "r")
+#         idx = np.random.randint(800, 1000)
+#         state = torch.tensor(f["data/demo_0/state"][idx])
+#         og.sim.load_state(state, serialized=True)
+#     elif og_env.task.activity_name == "clean_a_trumpet":
+#         f = h5py.File("/home/arpit/behavior_dataset/task-0037/episode_00372720_replayed.hdf5", "r")
+#         # idx = np.random.randint(900, 1000)
+#         idx = np.random.randint(1000, 1050)
+#         state = torch.tensor(f["data/demo_0/state"][idx])
+#         # For some reason, the state is not loaded correctly with the first load.
+#         for _ in range(2):
+#             og.sim.load_state(state, serialized=True)
+#     elif og_env.task.activity_name == "make_microwave_popcorn":
+#         f = h5py.File("/home/arpit/behavior_dataset/task-0040/episode_00402500_replayed.hdf5", "r")
+#         idx = np.random.randint(150, 200)
+#         state = torch.tensor(f["data/demo_0/state"][idx])
+#         state_size = f["data/demo_0/state_size"][idx]
+#         og.sim.load_state(state[: int(state_size)], serialized=True)
+#     elif og_env.task.activity_name == "attach_a_camera_to_a_tripod":
+#         f = h5py.File("/home/arpit/behavior_dataset/task-0035/episode_00351240_replayed.hdf5", "r")
+#         idx = np.random.randint(1400, 1450)
+#         state = torch.tensor(f["data/demo_0/state"][idx])
+#         state_size = f["data/demo_0/state_size"][idx]
+#         og.sim.load_state(state[: int(state_size)], serialized=True)
     
 
-    for key, controller in og_env.robots[0].controllers.items(): 
-        if key not in ["gripper_left", "gripper_right"]:
-            controller.reset()
-    for _ in range(20): og.sim.step()
+#     for key, controller in og_env.robots[0].controllers.items(): 
+#         if key not in ["gripper_left", "gripper_right"]:
+#             controller.reset()
+#     for _ in range(20): og.sim.step()
 
-    # Get inital observation after loading the state.
-    from collections import deque
-    # Step 1: Get obs from the behavior env.
-    observations, _ = behavior_groot_env.get_observation()
-    # Step 2: Apply multistep wrapper to the observation.
-    multistep_wrapper.obs = deque([observations] * (multistep_wrapper.max_steps_needed + 1), 
-        maxlen=multistep_wrapper.max_steps_needed + 1)
-    observations = multistep_wrapper._get_obs(
-        video_delta_indices=multistep_wrapper.video_delta_indices,
-        state_delta_indices=multistep_wrapper.state_delta_indices
-    )
-    # Step 3: Apply num_envs to the observation.
-    observations = add_env_dim_to_obs(observations, n_envs)
+#     # Get inital observation after loading the state.
+#     from collections import deque
+#     # Step 1: Get obs from the behavior env.
+#     observations, _ = behavior_groot_env.get_observation()
+#     # Step 2: Apply multistep wrapper to the observation.
+#     multistep_wrapper.obs = deque([observations] * (multistep_wrapper.max_steps_needed + 1), 
+#         maxlen=multistep_wrapper.max_steps_needed + 1)
+#     observations = multistep_wrapper._get_obs(
+#         video_delta_indices=multistep_wrapper.video_delta_indices,
+#         state_delta_indices=multistep_wrapper.state_delta_indices
+#     )
+#     # Step 3: Apply num_envs to the observation.
+#     observations = add_env_dim_to_obs(observations, n_envs)
 
-    return observations
+#     return observations
 
 def create_eval_env(
     env_name: str, env_idx: int, total_n_envs: int, wrapper_configs: WrapperConfigs
@@ -381,8 +381,8 @@ def run_rollout_gymnasium_policy(
     episode_infos = defaultdict(list)
 
     # Initial reset
-    # observations, _ = env.reset()
-    observations = reset_env(env, n_envs)
+    observations, _ = env.reset()
+    # observations = reset_env(env, n_envs)
     policy.reset()
     i = 0
 
@@ -456,7 +456,8 @@ def run_rollout_gymnasium_policy(
                 current_lengths[env_idx] = 0
 
                 # Reset the environment.
-                next_obs = reset_env(env, n_envs)
+                # observations = reset_env(env, n_envs)
+                observations, _ = env.reset()
                 policy.reset()
 
         observations = next_obs

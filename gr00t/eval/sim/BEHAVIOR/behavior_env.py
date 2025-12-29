@@ -5,6 +5,7 @@ import json
 import h5py
 import logging
 from pathlib import Path
+from matplotlib import pyplot as plt
 
 from gr00t.eval.sim.BEHAVIOR.og_teleop_utils import (
     generate_basic_environment_config,
@@ -25,7 +26,7 @@ from omnigibson.transition_rules import CookingSystemRule, MixingToolRule, Toggl
 import torch as th
 
 
-gm.HEADLESS = False
+gm.HEADLESS = True
 
 # create module logger
 logger = logging.getLogger("evaluator")
@@ -156,6 +157,14 @@ TASK_NAMES_TO_INSTRUCTIONS = {
     k: v.capitalize() + "." for k, v in TASK_NAMES_TO_INSTRUCTIONS.items()
 }
 
+SUBTASK_MAP = {
+    "attach_a_camera_to_a_tripod": [
+        {
+            "skill_description": "attach",
+            "manipulating_object_id": "digital_camera_87",
+        }
+    ]
+}
 
 def recursively_convert_to_torch(state):
     # For all the lists in state dict, convert to torch tensor
@@ -400,6 +409,13 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         self._task_progress_dict = {}
         self._physx_crashed = False
 
+        # for training instances
+        self.base_train_instances_path = f"/home/arpit/behavior_dataset"
+        self.train_instance_files = os.listdir(f"{self.base_train_instances_path}/task-{TASK_NAMES_TO_INDICES[self.task_name]:04d}/replayed")
+        self.train_instance_files.sort()
+        self._train_instance_idx_pointer = 0
+
+
     def reset(self, *args, **kwargs):
         # if physx crashed, calling env reset will raise an error
         if self._physx_crashed:
@@ -413,13 +429,22 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
             self._instance_indices_this_env
         )
         
+        # the correct way to do: first reset then load task instance
+        self.env.reset()
+        
         # If using the initial states from the test set of BEHAVIOR-1K challenge data
-        # # the correct way to do: first reset then load task instance
-        # self.env.reset()
         # load_task_instance_for_env(self.env, self.robot, instance_id)
-
-        obs, info = self.env.reset()
-        obs = preprocess_obs(self, obs)
+        # obs, info = self.env.reset()
+        # obs = preprocess_obs(self, obs)
+        
+        # If using the initial states from the training set (collected demonstraitons) of BEHAVIOR-1K challenge data
+        self.load_initial_state_for_env()
+        obs, info = self.get_observation()
+        
+        # plt.imshow(obs["video.observation.images.rgb.head_256_256"])
+        # plt.savefig("temp.png")
+        # breakpoint()
+        
         # run metric start callbacks
         for metric in self.metrics:
             metric.start_callback(self.env)
@@ -571,6 +596,63 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         obs = preprocess_obs(self, obs)
         return obs, info
 
+    def load_initial_state_for_env(self) -> None:
+        """
+        Load the initial state for the environment.
+        """
+        # Load state from BEHAVIOR-1K challenge data.
+        f = h5py.File(f"{self.base_train_instances_path}/task-{TASK_NAMES_TO_INDICES[self.task_name]:04d}/replayed/{self.train_instance_files[self._train_instance_idx_pointer]}", "r")
+        f_name = self.train_instance_files[self._train_instance_idx_pointer].split(".")[0]
+        annotation_f = json.load(open(f"{self.base_train_instances_path}/annotations/task-{TASK_NAMES_TO_INDICES[self.task_name]:04d}/{f_name}.json", "r"))
+        if self.task_name == "hanging_pictures":
+            f = h5py.File("/home/arpit/behavior_dataset/task-0034/episode_00340020_replayed.hdf5", "r")
+            idx = np.random.randint(1350, 1400)
+            state = th.tensor(f["data/demo_0/state"][idx])
+            og.sim.load_state(state, serialized=True)
+        elif self.task_name == "turning_on_radio":
+            f = h5py.File("/home/arpit/behavior_dataset/task-0000/episode_00000010_replayed.hdf5", "r")
+            idx = np.random.randint(800, 1000)
+            state = th.tensor(f["data/demo_0/state"][idx])
+            og.sim.load_state(state, serialized=True)
+        elif self.task_name == "clean_a_trumpet":
+            f = h5py.File("/home/arpit/behavior_dataset/task-0037/episode_00372720_replayed.hdf5", "r")
+            # idx = np.random.randint(900, 1000)
+            idx = np.random.randint(1000, 1050)
+            state = th.tensor(f["data/demo_0/state"][idx])
+            # For some reason, the state is not loaded correctly with the first load.
+            for _ in range(2):
+                og.sim.load_state(state, serialized=True)
+        elif self.task_name == "make_microwave_popcorn":
+            f = h5py.File("/home/arpit/behavior_dataset/task-0040/episode_00402500_replayed.hdf5", "r")
+            idx = np.random.randint(150, 200)
+            state = th.tensor(f["data/demo_0/state"][idx])
+            state_size = f["data/demo_0/state_size"][idx]
+            og.sim.load_state(state[: int(state_size)], serialized=True)
+        elif self.task_name == "attach_a_camera_to_a_tripod":
+            # TODO: Check if we need to change the hardcoded "0"
+            target_skill = SUBTASK_MAP[self.task_name][0]
+            for skill in annotation_f["skill_annotation"]:
+                if skill["skill_description"][0] == target_skill["skill_description"] and skill["manipulating_object_id"][0] == target_skill["manipulating_object_id"]:
+                    start_idx = skill["frame_duration"][0]
+                    break
+            # start_idx, end_idx: (1400, 1450)
+            if start_idx is None:
+                print(f"Could not find the start index for the skill {target_skill['skill_description']} and manipulating object {target_skill['manipulating_object_id']}")
+                breakpoint()
+            end_idx = start_idx + 50
+            idx = np.random.randint(start_idx, end_idx)
+            print(f"For f_name: {f_name}, Loading state from index: {idx}")
+            state = th.tensor(f["data/demo_0/state"][idx])
+            state_size = f["data/demo_0/state_size"][idx]
+            og.sim.load_state(state[: int(state_size)], serialized=True)
+
+        for key, controller in self.env.robots[0].controllers.items(): 
+            if key not in ["gripper_left", "gripper_right"]:
+                controller.reset()
+        for _ in range(20): og.sim.step()
+
+        # Update the instance index pointer
+        self._train_instance_idx_pointer = (self._train_instance_idx_pointer + 1) % len(self.train_instance_files)
 
 
 def register_behavior_envs():
