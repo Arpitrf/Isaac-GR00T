@@ -485,7 +485,7 @@ def run_rollout_gymnasium_policy(
     # Save some attributes to hdf5
     behavior_groot_env = env.envs[0].env.env.env.env
     og_env = behavior_groot_env.env.env.env
-    og_env.save_data()
+    og_env.save_data(episode_infos)
 
     env.close()
     print(f"Collecting {n_episodes} episodes took {time.time() - start_time} seconds")

@@ -568,7 +568,8 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         num = len([file for file in os.listdir(folder_name) if os.path.isfile(os.path.join(folder_name, file)) and "playback" not in file])
         # num = len(os.listdir(folder_name))
         # TODO: Get the number from the disk.
-        hdf5_path = f"{folder_name}/rollout_{num:04d}_{f_id}.hdf5"
+        # hdf5_path = f"{folder_name}/rollout_{num:04d}_{f_id}.hdf5"
+        hdf5_path = f"{folder_name}/rollout_{num:04d}.hdf5"
         env = DataCollectionWrapper(
             env=env,
             output_path=hdf5_path,
