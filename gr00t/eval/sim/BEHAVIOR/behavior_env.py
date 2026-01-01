@@ -158,12 +158,19 @@ TASK_NAMES_TO_INSTRUCTIONS = {
     k: v.capitalize() + "." for k, v in TASK_NAMES_TO_INSTRUCTIONS.items()
 }
 
+# TODO: Add here for new task
 SUBTASK_MAP = {
     "attach_a_camera_to_a_tripod": [
         {
             "skill_description": "attach",
-            "manipulating_object_id": "digital_camera_87",
-        }
+            "object_id": "digital_camera_87",
+        },   
+    ],
+    "make_microwave_popcorn": [
+        {
+            "skill_description": "open door",
+            "object_id": "microwave_hjjxmi_0",
+        },
     ]
 }
 
@@ -611,47 +618,49 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         f = h5py.File(f"{self.base_train_instances_path}/task-{TASK_NAMES_TO_INDICES[self.task_name]:04d}/replayed/{self.train_instance_files[self._train_instance_idx_pointer]}", "r")
         f_name = self.train_instance_files[self._train_instance_idx_pointer].split(".")[0]
         annotation_f = json.load(open(f"{self.base_train_instances_path}/annotations/task-{TASK_NAMES_TO_INDICES[self.task_name]:04d}/{f_name}.json", "r"))
-        if self.task_name == "hanging_pictures":
-            f = h5py.File("/home/arpit/behavior_dataset/task-0034/episode_00340020_replayed.hdf5", "r")
-            idx = np.random.randint(1350, 1400)
-            state = th.tensor(f["data/demo_0/state"][idx])
-            og.sim.load_state(state, serialized=True)
-        elif self.task_name == "turning_on_radio":
-            f = h5py.File("/home/arpit/behavior_dataset/task-0000/episode_00000010_replayed.hdf5", "r")
-            idx = np.random.randint(800, 1000)
-            state = th.tensor(f["data/demo_0/state"][idx])
-            og.sim.load_state(state, serialized=True)
-        elif self.task_name == "clean_a_trumpet":
-            f = h5py.File("/home/arpit/behavior_dataset/task-0037/episode_00372720_replayed.hdf5", "r")
-            # idx = np.random.randint(900, 1000)
-            idx = np.random.randint(1000, 1050)
-            state = th.tensor(f["data/demo_0/state"][idx])
-            # For some reason, the state is not loaded correctly with the first load.
-            for _ in range(2):
-                og.sim.load_state(state, serialized=True)
-        elif self.task_name == "make_microwave_popcorn":
-            f = h5py.File("/home/arpit/behavior_dataset/task-0040/episode_00402500_replayed.hdf5", "r")
-            idx = np.random.randint(150, 200)
-            state = th.tensor(f["data/demo_0/state"][idx])
-            state_size = f["data/demo_0/state_size"][idx]
-            og.sim.load_state(state[: int(state_size)], serialized=True)
-        elif self.task_name == "attach_a_camera_to_a_tripod":
-            # TODO: Check if we need to change the hardcoded "0"
-            target_skill = SUBTASK_MAP[self.task_name][0]
-            for skill in annotation_f["skill_annotation"]:
-                if skill["skill_description"][0] == target_skill["skill_description"] and skill["manipulating_object_id"][0] == target_skill["manipulating_object_id"]:
-                    start_idx = skill["frame_duration"][0]
-                    break
-            # start_idx, end_idx: (1400, 1450)
-            if start_idx is None:
-                print(f"Could not find the start index for the skill {target_skill['skill_description']} and manipulating object {target_skill['manipulating_object_id']}")
-                breakpoint()
-            end_idx = start_idx + 50
-            idx = np.random.randint(start_idx, end_idx)
-            print(f"For f_name: {f_name}, Loading state from index: {idx}")
-            state = th.tensor(f["data/demo_0/state"][idx])
-            state_size = f["data/demo_0/state_size"][idx]
-            og.sim.load_state(state[: int(state_size)], serialized=True)
+        
+        # if self.task_name == "hanging_pictures":
+        #     f = h5py.File("/home/arpit/behavior_dataset/task-0034/episode_00340020_replayed.hdf5", "r")
+        #     idx = np.random.randint(1350, 1400)
+        #     state = th.tensor(f["data/demo_0/state"][idx])
+        #     og.sim.load_state(state, serialized=True)
+        # elif self.task_name == "turning_on_radio":
+        #     f = h5py.File("/home/arpit/behavior_dataset/task-0000/episode_00000010_replayed.hdf5", "r")
+        #     idx = np.random.randint(800, 1000)
+        #     state = th.tensor(f["data/demo_0/state"][idx])
+        #     og.sim.load_state(state, serialized=True)
+        # elif self.task_name == "clean_a_trumpet":
+        #     f = h5py.File("/home/arpit/behavior_dataset/task-0037/episode_00372720_replayed.hdf5", "r")
+        #     # idx = np.random.randint(900, 1000)
+        #     idx = np.random.randint(1000, 1050)
+        #     state = th.tensor(f["data/demo_0/state"][idx])
+        #     # For some reason, the state is not loaded correctly with the first load.
+        #     for _ in range(2):
+        #         og.sim.load_state(state, serialized=True)
+        # elif self.task_name == "make_microwave_popcorn":
+        #     f = h5py.File("/home/arpit/behavior_dataset/task-0040/episode_00402500_replayed.hdf5", "r")
+        #     idx = np.random.randint(150, 200)
+        #     state = th.tensor(f["data/demo_0/state"][idx])
+        #     state_size = f["data/demo_0/state_size"][idx]
+        #     og.sim.load_state(state[: int(state_size)], serialized=True)
+        # elif self.task_name == "attach_a_camera_to_a_tripod":
+        
+        # TODO: Check if we need to change the hardcoded "0"
+        target_skill = SUBTASK_MAP[self.task_name][0]
+        for skill in annotation_f["skill_annotation"]:
+            if skill["skill_description"][0] == target_skill["skill_description"] and target_skill["object_id"] in skill["object_id"][0]:
+                start_idx = skill["frame_duration"][0]
+                break
+        # start_idx, end_idx: (1400, 1450)
+        if start_idx is None:
+            print(f"Could not find the start index for the skill {target_skill['skill_description']} and manipulating object {target_skill['object_id']}")
+            breakpoint()
+        end_idx = start_idx + 50
+        idx = np.random.randint(start_idx, end_idx)
+        print(f"For f_name: {f_name}, Loading state from index: {idx}")
+        state = th.tensor(f["data/demo_0/state"][idx])
+        state_size = f["data/demo_0/state_size"][idx]
+        og.sim.load_state(state[: int(state_size)], serialized=True)
 
         for key, controller in self.env.robots[0].controllers.items(): 
             if key not in ["gripper_left", "gripper_right"]:
@@ -661,6 +670,7 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         # Update the instance index pointer
         self._train_instance_idx_pointer = (self._train_instance_idx_pointer + 1) % len(self.train_instance_files)
 
+    # TODO: Add here for new task
     def check_subtask_success(self) -> bool:
         """
         Check if the subtask is successful.
@@ -669,6 +679,9 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
             source_object = self.env.scene.object_registry("name", "digital_camera_87")
             other = self.env.scene.object_registry("name", "camera_tripod_86")
             return source_object.states[object_states.AttachedTo].get_value(other)
+        elif self.task_name == "make_microwave_popcorn":
+            microwave = self.env.scene.object_registry("name", "microwave_hjjxmi_0")
+            return microwave.states[object_states.Open].get_value()
 
 def register_behavior_envs():
     register(
