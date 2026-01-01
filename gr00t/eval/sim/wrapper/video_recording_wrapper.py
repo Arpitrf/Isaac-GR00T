@@ -151,6 +151,7 @@ class VideoRecordingWrapper(gym.Wrapper):
         self.overlay_text = overlay_text
 
         self.step_count = 0
+        self.episode_id = 0
 
         self.is_success = False
 
@@ -330,7 +331,9 @@ class VideoRecordingWrapper(gym.Wrapper):
         self.intermediate_signals = {}
 
         if self.video_dir is not None:
-            self.file_path = self.video_dir / f"{uuid.uuid4()}.mp4"
+            self.file_path = self.video_dir / f"episode_{self.episode_id:04d}.mp4"
+            self.episode_id += 1
+            # self.file_path = self.video_dir / f"{uuid.uuid4()}.mp4"
         return result
 
     def step(self, action):

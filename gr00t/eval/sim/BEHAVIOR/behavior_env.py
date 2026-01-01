@@ -658,8 +658,10 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         end_idx = start_idx + 50
         idx = np.random.randint(start_idx, end_idx)
         print(f"For f_name: {f_name}, Loading state from index: {idx}")
-        state = th.tensor(f["data/demo_0/state"][idx])
-        state_size = f["data/demo_0/state_size"][idx]
+        # Assuming the last demo is the one that the teleoperator collected successfully
+        demo_id = f["data"].attrs["n_episodes"] - 1
+        state = th.tensor(f[f"data/demo_{demo_id}/state"][idx])
+        state_size = f[f"data/demo_{demo_id}/state_size"][idx]
         og.sim.load_state(state[: int(state_size)], serialized=True)
 
         for key, controller in self.env.robots[0].controllers.items(): 
