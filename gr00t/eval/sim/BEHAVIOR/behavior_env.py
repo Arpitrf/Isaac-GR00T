@@ -171,7 +171,13 @@ SUBTASK_MAP = {
             "skill_description": "open door",
             "object_id": "microwave_hjjxmi_0",
         },
-    ]
+    ],
+    "setting_the_fire": [
+        {
+            "skill_description": "ignite",
+            "object_id": "lighter_73",
+        },
+    ],
 }
 
 def recursively_convert_to_torch(state):
@@ -551,22 +557,26 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         env = og.Environment(configs=cfg)
 
         # In order to load states from B1K challenge data
-        self.scene_path = f"/home/arpit/behavior_dataset/task-00{task_cfg.get('activity_index', '00')}"
+        # TODO: Add here for new task
+        self.scene_path = f"/home/arpit/behavior_dataset/task-{TASK_NAMES_TO_INDICES[self.task_name]:04d}/replayed"
         if self.task_name == "hanging_pictures":
             f_id = "00340020"
-            f = h5py.File(f"{self.scene_path}/episode_{f_id}replayed.hdf5", "r")
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
         elif self.task_name == "turning_on_radio":
             f_id = "00000010"
-            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
         elif self.task_name == "clean_a_trumpet":
             f_id = "00372720"
-            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
         elif self.task_name == "make_microwave_popcorn":
             f_id = "00402500"
-            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
         elif self.task_name == "attach_a_camera_to_a_tripod":
             f_id = "00351240"
-            f = h5py.File(f"{self.scene_path}/episode_{f_id}_replayed.hdf5", "r")
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
+        elif self.task_name == "setting_the_fire":
+            f_id = "00301910"
+            f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
         scene_file_dict = json.loads(f["data"].attrs["scene_file"])
         
         folder_name = f"{Path(__file__).parent}/rollouts/{self.task_name}"
@@ -574,7 +584,6 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         # num = len([file for file in os.listdir(folder_name) if os.path.isfile(os.path.join(folder_name, file))])
         num = len([file for file in os.listdir(folder_name) if os.path.isfile(os.path.join(folder_name, file)) and "playback" not in file])
         # num = len(os.listdir(folder_name))
-        # TODO: Get the number from the disk.
         # hdf5_path = f"{folder_name}/rollout_{num:04d}_{f_id}.hdf5"
         hdf5_path = f"{folder_name}/rollout_{num:04d}.hdf5"
         env = DataCollectionWrapper(
@@ -684,6 +693,9 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         elif self.task_name == "make_microwave_popcorn":
             microwave = self.env.scene.object_registry("name", "microwave_hjjxmi_0")
             return microwave.states[object_states.Open].get_value()
+        elif self.task_name == "setting_the_fire":
+            firewood = self.env.scene.object_registry("name", "firewood_76")
+            return firewood.states[object_states.OnFire].get_value()
 
 def register_behavior_envs():
     register(
