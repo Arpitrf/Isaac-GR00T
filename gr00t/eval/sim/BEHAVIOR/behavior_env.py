@@ -27,7 +27,7 @@ from omnigibson import object_states
 import torch as th
 
 
-gm.HEADLESS = True
+gm.HEADLESS = False
 
 # create module logger
 logger = logging.getLogger("evaluator")
@@ -176,6 +176,12 @@ SUBTASK_MAP = {
         {
             "skill_description": "ignite",
             "object_id": "lighter_73",
+        },
+    ],
+    "clean_a_trumpet": [
+        {
+            "skill_description": "pick up from",
+            "object_id": "scrub_brush_86",
         },
     ],
 }
@@ -566,7 +572,7 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
             f_id = "00000010"
             f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
         elif self.task_name == "clean_a_trumpet":
-            f_id = "00372720"
+            f_id = "00370240"
             f = h5py.File(f"{self.scene_path}/episode_{f_id}.hdf5_replayed.hdf5", "r")
         elif self.task_name == "make_microwave_popcorn":
             f_id = "00402500"
@@ -696,6 +702,12 @@ class BEHAVIORGr00tEnv(gym.Wrapper):
         elif self.task_name == "setting_the_fire":
             firewood = self.env.scene.object_registry("name", "firewood_76")
             return firewood.states[object_states.OnFire].get_value()
+        elif self.task_name == "clean_a_trumpet":
+            scrub = self.env.scene.object_registry("name", "scrub_brush_86")
+            if self.env.scene.robots[0].is_grasping(candidate_obj=scrub).value == 1:
+                return True
+            else:
+                return False
 
 def register_behavior_envs():
     register(
